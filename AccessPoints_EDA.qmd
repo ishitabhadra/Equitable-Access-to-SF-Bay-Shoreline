@@ -1,0 +1,327 @@
+---
+title: "EDA: SF Bay Access Points"
+author: "Jeffrey Ding"
+format: 
+  html:
+    page-layout: full
+    fig-width: 12
+    fig-height: 12
+    fig-responsive: true
+---
+
+```{r}
+library(tidyverse)
+library(plotly)
+library(htmlwidgets)
+```
+
+
+# Data Preview
+
+```{r}
+access_raw <- read.csv("Shoreline-Access-Pts_v2-1-attribute-table.csv")
+glimpse(access_raw)
+
+paste("Number of unique access points:", length(unique(access_raw$Access_Point_ID)))
+```
+
+
+## Accessibility
+
+### 1. Access Points and Transportation Modes Serviced
+
+```{r}
+# Set granularity to one row per access point
+transit <- access_raw %>%
+    group_by(Access_Point_ID) %>%
+    reframe(
+        Access_Type = first(Access_Type),
+        County_Name = first(County_Name),
+        Subembayment_Name = first(Subembayment_Name),
+        OLU_Name = first(OLU_Name),
+
+        # Public transit information
+        Public_Transit_Stops = first(Public_Transit_Stops),
+        sum_n_routes = max(sum_n_routes),
+
+        # Binarize walk/bike/drive service availability
+        n_service_types = n_distinct(Service_Type),
+        Walk = any(Service_Type == "Walk"),
+        Bike = any(Service_Type == "Bike"),
+        Drive = any(Service_Type == "Drive"),
+
+        # Demographic information for access point's service area
+        Estimated_Total_Population = first(SUM_Estimated_Total_Population),
+        Estimated_People_of_Color = first(SUM_Estimated_People_of_Color),
+
+        Estimated_Total_Households = first(SUM_Estimated_Total_Households),
+        Estimated_Average_Household_Size = first(SUM_Estimated_Average_Household_Size),
+        Estimated_Low_Income_Households = first(SUM_Estimated_Low_Income_Households),
+        Estimated_No_Vehicle_Households = first(SUM_Estimated_Households_With_No_Vehicle)
+    )
+
+glimpse(transit)
+```
+
+```{r}
+# Total counts of access points in each county
+total_counts <- transit %>%
+    mutate(Total = Walk | Bike | Drive) %>%
+    group_by(County_Name) %>%
+    reframe(
+        Mode = "Total",
+        n = sum(Total, na.rm = TRUE)
+    )
+
+# Construct county order by total access points
+county_order <- total_counts %>%
+    arrange(n) %>%
+    pull(County_Name)
+
+# Reorder total_counts
+total_counts <- total_counts %>%
+    mutate(County_Name = factor(County_Name, levels = county_order))
+
+
+# Counts of access points in each county by transportation modes serviced
+mode_counts <- transit %>%
+    pivot_longer(c(Walk, Bike, Drive), names_to = "Mode", values_to = "Available") %>%
+    mutate(
+        County_Name = factor(County_Name, levels = county_order),
+        Mode = factor(Mode, levels = c("Total", "Drive", "Bike", "Walk"))
+    ) %>%
+    group_by(County_Name, Mode) %>%
+    reframe(n = sum(Available, na.rm = TRUE))
+
+# Merge mode_counts and total_counts + order mode values for plotting
+transport_modes <- bind_rows(mode_counts, total_counts) %>%
+    mutate(Mode = factor(Mode, levels = c("Total", "Drive", "Bike", "Walk"))) %>%
+    arrange(County_Name, Mode)
+
+head(transport_modes, 12)
+```
+
+```{r}
+# Construct plot
+transport_modes_plot <- ggplot() +
+    # Total access points by county (underlaid)
+    geom_col(
+        data = total_counts,
+        aes(x = County_Name, y = n,
+            text = paste0(
+                "County: ", County_Name,
+                "<br>Total Access Points: ", n
+            )),
+        alpha = 0.35, width = 0.85
+    ) +
+    # Access points by county + transport mode (overlaid)
+    geom_col(
+        data = mode_counts, 
+        aes(x = County_Name, y = n, fill = Mode,
+            text = paste0(
+                "County: ", County_Name,
+                "<br>Transport Mode: ", Mode,
+                "<br>Access Points: ", n
+            )),
+        color = "black", position = "dodge", width = 0.8
+    ) +
+    scale_fill_manual(
+        values = c(
+        Walk = "lightgreen",
+        Bike = "deepskyblue",
+        Drive = "salmon",
+        Total = "grey"
+        )
+    ) +
+    coord_flip() +
+    labs(
+        title = "Bay Access Points by County and Supported Transportation Modes",
+        x = "County", 
+        y = "Number of access points"
+    ) +
+    theme_bw()
+
+ggplotly(transport_modes_plot, tooltip = "text") %>%
+    config(responsive = TRUE)
+```
+
+
+### 2. Access Points and Public Transit Service
+
+```{r}
+transit <- transit %>%
+    mutate(County_OLU = paste(County_Name, ":", OLU_Name))
+
+county_olu_order <- transit %>%
+    arrange(desc(County_OLU)) %>%
+    pull(County_OLU) %>%
+    unique()
+
+transit <- transit %>%
+    mutate(County_OLU = factor(County_OLU, levels = county_olu_order))
+
+# Subset without select outlier OLUs
+transit_sub_olu <- transit %>%
+    filter((OLU_Name != "Mission - Islais") & (OLU_Name != "Golden Gate")) 
+
+# Subset with select counties
+transit_sub_county <- transit %>%
+    filter(County_Name %in% c("Alameda", "Contra Costa", "Marin", "San Mateo"))
+
+head(transit, 10)
+```
+
+```{r}
+#| fig-height: 20
+
+# Construct reusable plot config
+transit_access_config1 <- list(
+    geom_boxplot(),
+    coord_flip(),
+    scale_fill_manual(
+        values = c(
+            "Alameda" = "#E69F00",
+            "Contra Costa" = "#56B4E9",
+            "Marin" = "#009E73",
+            "Napa" = "#F0E442",
+            "San Francisco" = "#0072B2",
+            "San Mateo" = "#D55E00",
+            "Santa Clara" = "#CC79A7",
+            "Solano" = "#90EE90",
+            "Sonoma" = "#B0E2FF"
+        )
+    ),
+    scale_x_discrete(labels = function(x) sub("^.*\\s:\\s", "", x)),
+    labs(
+        title = "Public Transit Stops Near Bay Access Points by OLU",
+        x = "Operational Landscape Unit (OLU)",
+        y = "Number of nearby public transit stops",
+        fill = "County"
+    ),
+    theme_bw()
+)
+
+
+# Construct plot for full transit dataframe
+transit_access_plot1 <- ggplot(
+    data = transit,
+    aes(x = County_OLU, y = Public_Transit_Stops,
+        fill = County_Name,
+        text = paste0(
+            "County: ", County_Name,
+            "<br>OLU: ", OLU_Name
+        ))
+    ) +
+    transit_access_config1
+
+ggplotly(transit_access_plot1) %>%
+  config(responsive = TRUE)
+```
+
+```{r}
+#| fig-height: 20
+
+# Construct plot for OLU subset transit dataframe
+transit_access_plot2 <- ggplot(
+    data = transit_sub_olu,
+    aes(x = County_OLU, y = Public_Transit_Stops,
+        fill = County_Name,
+        text = paste0(
+            "County: ", County_Name,
+            "<br>OLU: ", OLU_Name
+        ))
+    ) +
+    transit_access_config1
+
+ggplotly(transit_access_plot2) %>%
+    config(responsive = TRUE) %>%
+    layout(
+        annotations = list(
+        list(
+            x = 0, y = -0.1, xref = "paper", yref = "paper",
+            text = "OLUs excluded: Mission-Islais, Golden Gate",
+            showarrow = FALSE,
+            xanchor = "left",
+            align = "left",
+            font = list(size = 14)
+        )
+        ),
+        margin = list(t = 50, b = 100)
+    )
+```
+
+
+```{r}
+#| fig-height: 50
+#| fig-width: 40
+
+# Construct reusable plot config
+transit_access_config2 <- list(
+    coord_flip(),
+    scale_x_discrete(labels = function(x) sub("^.*\\s:\\s", "", x)),
+    labs(
+        title = "Public Transit Stops Near Bay Access Points by OLU and County",
+        x = NULL,
+        y = "Number of nearby public transit stops"
+    ),
+    theme_bw()
+)
+
+
+# Construct plot for OLU subset transit dataframe
+transit_access_plot3 <- ggplot(transit_sub_olu, aes(x = OLU_Name, y = Public_Transit_Stops)) +
+    geom_boxplot(fill = "#B0E2FF") +
+    facet_wrap(~ County_Name, scales = "free_y", ncol = 3) +
+    transit_access_config2 +
+    theme(
+        panel.spacing = unit(9, "lines"),
+        plot.margin = margin(20, 20, 20, 20)  # top, right, bottom, left
+    )
+
+ggplotly(transit_access_plot3) %>%
+    config(responsive = TRUE) %>%
+    layout(
+        annotations = list(
+        list(
+            x = 0, y = -0.11, xref = "paper", yref = "paper",
+            text = "OLUs excluded: Mission-Islais, Golden Gate",
+            showarrow = FALSE,
+            xanchor = "left",
+            align = "left",
+            font = list(size = 14)
+        )
+        ),
+        margin = list(t = 90, b = 90)
+    )
+```
+
+```{r}
+#| fig-height: 50
+#| fig-width: 50
+
+# Construct plot for county subset transit dataframe
+transit_access_plot4 <- ggplot(transit_sub_county, aes(x = OLU_Name, y = Public_Transit_Stops)) +
+    geom_boxplot(fill = "#B0E2FF") +
+    facet_wrap(~ County_Name, scales = "free_y", ncol = 2) +
+    transit_access_config2 +
+    theme(
+        panel.spacing = unit(15, "lines"),
+        plot.margin = margin(20, 20, 20, 20)  # top, right, bottom, left
+    )
+
+ggplotly(transit_access_plot4) %>%
+    config(responsive = TRUE) %>%
+    layout(
+        annotations = list(
+        list(
+            x = 0, y = -0.15, xref = "paper", yref = "paper",
+            text = "Select counties only: Alameda, Contra Costa, Marin, San Mateo",
+            showarrow = FALSE,
+            xanchor = "left",
+            align = "left",
+            font = list(size = 14)
+        )
+        ),
+        margin = list(t = 90, b = 90)
+    )
+```
