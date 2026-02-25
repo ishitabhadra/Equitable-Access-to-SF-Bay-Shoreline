@@ -8,6 +8,8 @@ format:
     fig-height: 12
     fig-responsive: true
     self-contained: true
+execute:
+  echo: true
 ---
 
 ```{r}
@@ -216,7 +218,7 @@ transit_access_plot1 <- ggplot(
     transit_access_config1
 
 ggplotly(transit_access_plot1) %>%
-  config(responsive = TRUE)
+    config(responsive = TRUE)
 ```
 
 ```{r}
@@ -325,4 +327,28 @@ ggplotly(transit_access_plot4) %>%
         ),
         margin = list(t = 90, b = 90)
     )
+```
+
+
+
+# Shapefile Preview
+
+```{r}
+library(sf)
+library(leaflet)
+```
+
+```{r}
+access_shp <- st_read("Shoreline_access_points/Shoreline_Access_Pts_v2_1.shp") |>
+    st_transform(4326)
+
+names(access_shp)
+# head(access_shp, 5)
+# st_crs(access_shp)  
+```
+
+
+```{r}
+# static plot of shapefile data
+plot(st_geometry(access_shp))
 ```

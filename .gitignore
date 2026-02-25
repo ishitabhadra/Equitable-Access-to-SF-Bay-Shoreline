@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# R session / history
+.Rhistory
+.RData
+.Ruserdata
+
+# RStudio
+.Rproj.user/
+
+# Quarto
+.quarto/
+
+# Knitr cache
+*_cache/
+*.utf8.md
