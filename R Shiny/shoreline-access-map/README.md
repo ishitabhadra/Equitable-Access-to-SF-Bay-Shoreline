@@ -1,9 +1,10 @@
 ## SF Bay Shoreline Access: Priority Target Regions
 
-Interactive web app can be found here: https://jeffreyd.shinyapps.io/shoreline-access-map/
+[Open the dashboard](https://jeffreyd.shinyapps.io/shoreline-access-map/)
 
 **Description:** 
-This prototype dashboard aggregates shoreline access points into a hexagonal grid and attempts to quantify the need for improved shoreline access. 
+This prototype dashboard aggregates shoreline access points into a hexagonal grid and 
+ attempts to quantify the priority target regions for improved shoreline access. 
 Each hex contains the access points that fall within its boundary. 
 We then summarize the demographic features associated with those points and compute a **priority score** per hex based on user-chosen weights.
 
