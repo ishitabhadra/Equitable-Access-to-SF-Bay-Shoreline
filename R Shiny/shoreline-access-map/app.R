@@ -51,6 +51,38 @@ minmax01 <- function(x) {
   return (x - rng[1]) / (rng[2] - rng[1])
 }
 
+
+# ---------------
+# Feature Catalog
+# ---------------
+feature_catalog <- tibble::tribble(
+  ~var, ~label, ~category, ~denom,
+
+  # Financial status
+  "SUM_Estimated_Low_Income_Households", "Low-income households", "Financial status", "tot_hh",
+  "SUM_Estimated_Households_With_No_Vehicle", "Households with no vehicle", "Financial status", "tot_hh",
+  "SUM_Estimated_Households_Below_50_Percent_Median_AMI", "Households below 50% median AMI", "Financial status", "tot_hh",
+
+  # Vulnerability
+  "SUM_Estimated_Households_With_Disability", "Households with disability", "Vulnerability", "tot_hh",
+  "SUM_Estimated_Single_Parent_Households", "Single-parent households", "Vulnerability", "tot_hh",
+  "SUM_Estimated_Seniors_Living_Alone", "Seniors living alone", "Vulnerability", "tot_hh",
+  "SUM_Estimated_Population_With_No_High_School_Diploma", "Population with no high school diploma", "Vulnerability", "tot_pop",
+  "SUM_Estimated_Limited_English_Proficiency_Households", "Limited-English-proficiency households", "Vulnerability", "tot_hh",
+  "SUM_High_Vuln_Households", "High vulnerability households", "Vulnerability", "tot_hh",
+  "SUM_Highest_Vuln_Households", "Highest vulnerability households", "Vulnerability", "tot_hh",
+
+  # Race / ethnicity / immigration
+  "SUM_Estimated_People_of_Color", "People of color", "Race / ethnicity / immigration", "tot_pop",
+  "SUM_Estimated_Non_Citizens", "Non-citizens", "Race / ethnicity / immigration", "tot_pop",
+  "SUM_Estimated_Foreign_Born", "Foreign-born population", "Race / ethnicity / immigration", "tot_pop",
+  "SUM_Estimated_Latino_Population", "Latino population", "Race / ethnicity / immigration", "tot_pop",
+  "SUM_Estimated_Black_Population", "Black population", "Race / ethnicity / immigration", "tot_pop",
+  "SUM_Estimated_American_Indian_Population", "American Indian population", "Race / ethnicity / immigration", "tot_pop",
+  "SUM_Estimated_Asian_Population", "Asian population", "Race / ethnicity / immigration", "tot_pop",
+  "SUM_Estimated_Pacific_Islander_Population", "Pacific Islander population", "Race / ethnicity / immigration", "tot_pop"
+)
+
 # ----------
 # UI
 # ----------
@@ -76,10 +108,48 @@ ui <- fluidPage(
 
       tags$hr(),
 
-      # Weights: sliders to tune the demographic feature and priority score
-      sliderInput("w_poc", "Weight: People of color", min = 0, max = 1, value = 0.5, step = 0.05),
-      sliderInput("w_lowinc", "Weight: Low income households", min = 0, max = 1, value = 0.5, step = 0.05),
-      sliderInput("w_noveh", "Weight: No-vehicle households", min = 0, max = 1, value = 0.5, step = 0.05),
+      # Feature selectors: categorized selectize inputs for demographic features
+      selectizeInput(
+        "features_financial",
+        "Financial / household burden:",
+        choices = setNames(
+          feature_catalog$var[feature_catalog$category == "Financial status"],
+          feature_catalog$label[feature_catalog$category == "Financial status"]
+        ),
+        selected = c(
+          "SUM_Estimated_Low_Income_Households",
+          "SUM_Estimated_Households_With_No_Vehicle"
+        ),
+        multiple = TRUE
+      ),
+
+      selectizeInput(
+        "features_vulnerability",
+        "Vulnerability / social barriers:",
+        choices = setNames(
+          feature_catalog$var[feature_catalog$category == "Vulnerability"],
+          feature_catalog$label[feature_catalog$category == "Vulnerability"]
+        ),
+        selected = c(
+          "SUM_Estimated_Households_With_Disability"
+        ),
+        multiple = TRUE
+      ),
+
+      selectizeInput(
+        "features_race",
+        "Race / ethnicity / immigration:",
+        choices = setNames(
+          feature_catalog$var[feature_catalog$category == "Race / ethnicity / immigration"],
+          feature_catalog$label[feature_catalog$category == "Race / ethnicity / immigration"]
+        ),
+        selected = c(
+          "SUM_Estimated_People_of_Color"
+        ),
+        multiple = TRUE
+      ),
+
+      uiOutput("weight_sliders"),
 
       tags$hr(),
 
@@ -128,41 +198,37 @@ ui <- fluidPage(
 
         tags$b("Priority Score"),
         tags$p(
-          "For each hex we compute three underlying metrics (people of color, low-income status, vehicle ownership). ",
-          "Depending on the selected mode, these metrics are either percentages or counts."
+          "For each hex, the app computes whichever demographic features the user selects from the three categories above. ",
+          "Depending on the selected mode, each feature is evaluated either as a percentage of the relevant denominator ",
+          "(total population or total households) or as a raw count."
         ),
         tags$ol(
           tags$li(
             tags$b("Compute metric values per hex"),
             ": Sums are taken across all access points inside each hex. ",
-            "Percent metrics are computed as:",
-            tags$ul(
-              tags$li(tags$code("poc_pct = poc_pop / total_pop")),
-              tags$li(tags$code("lowinc_pct = lowinc_households / total_households")),
-              tags$li(tags$code("noveh_pct = noveh_households / total_households"))
-            )
+            "In Percent mode, each selected feature is divided by either total population or total households, ",
+            "depending on the feature."
           ),
           tags$li(
-            tags$b("Normalize each metric to a 0–1 scale"),
+            tags$b("Normalize each selected metric to a 0–1 scale"),
             ": Since counts and percentages can be on different scales, ",
-            "each metric is normalized according to its minimum and maximum", 
-            "across all hexes in the current view:",
+            "each selected metric is normalized across all hexes in the current view:",
             tags$br(),
             tags$code("z = (x - min(x)) / (max(x) - min(x))"),
             tags$br(),
-            "If a metric has no variation, i.e., min = max, it contributes 0 everywhere."
+            "If a metric has no variation, it contributes 0 everywhere."
           ),
           tags$li(
             tags$b("Weight and combine"),
-            ": The final score is a weighted sum of the normalized metrics (z-scores):",
+            ": The final score is a weighted sum of the normalized selected metrics:",
             tags$br(),
-            tags$code("score = weight_poc*z_poc + weight_lowinc*z_lowinc + weight_noveh*z_noveh"),
+            tags$code("score = sum(weight_j * z_j)"),
             tags$br(),
-            "If all weights are set to 0, scores default to 0 (no rankings given)."
+            "If all selected weights are 0, the score defaults to 0 for all hexes."
           ),
           tags$li(
             tags$b("Rank"),
-            ": Hexes are ranked by priority score in descending order (e.g., highest priority score is rank 1)."
+            ": Hexes are ranked by priority score in descending order, where rank 1 is the highest-priority hex under the current settings."
           )
         ),
 
@@ -183,6 +249,37 @@ ui <- fluidPage(
 # Server
 # ----------
 server <- function(input, output, session) {
+
+  selected_features <- reactive({
+    unique(c(
+      input$features_financial,
+      input$features_vulnerability,
+      input$features_race
+    ))
+  })
+
+  output$weight_sliders <- renderUI({
+    req(selected_features())
+
+    selected_tbl <- feature_catalog |>
+      filter(var %in% selected_features())
+
+    if (nrow(selected_tbl) == 0) {
+      return(tags$em("Select at least one demographic feature to compute a priority score."))
+    }
+
+    sliders <- lapply(seq_len(nrow(selected_tbl)), function(i) {
+      row <- selected_tbl[i, ]
+
+      sliderInput(
+        inputId = paste0("w_", row$var),
+        label = paste("Weight:", row$label),
+        min = 0, max = 1, value = 0.5, step = 0.05
+      )
+    })
+
+    do.call(tagList, sliders)
+  })
 
   # ----------------------------------------
   # Build hex grid + aggregate access points
@@ -216,36 +313,28 @@ server <- function(input, output, session) {
     pts_join <- st_join(pts_proj, hex_grid, join = st_within)
 
     # Aggregate demographic totals per hex (sum across all points in that hex)
+    demo_vars <- feature_catalog$var
+
     agg <- pts_join |>
       st_drop_geometry() |>
       filter(!is.na(hex_id)) |>
       group_by(hex_id) |>
       summarise(
-        # Count how many access points fall in the hex
         n_points = n(),
 
-        # Totals used as denominators for percent metrics
+        # Denominators for percent mode
         tot_pop = sum(SUM_Estimated_Total_Population, na.rm = TRUE),
         tot_hh = sum(SUM_Estimated_Total_Households, na.rm = TRUE),
 
-        # Total counts for demographics (used as numerators for percent metrics)
-        poc_pop = sum(SUM_Estimated_People_of_Color, na.rm = TRUE),
-        lowinc_hh = sum(SUM_Estimated_Low_Income_Households, na.rm = TRUE),
-        noveh_hh = sum(SUM_Estimated_Households_With_No_Vehicle, na.rm = TRUE),
-
-        # Extra unused metrics
+        # Aggregate all selectable demographic columns
+        across(all_of(demo_vars), ~ sum(.x, na.rm = TRUE)),
         mean_trail_quality = mean(mean_Trail_Quality_Score, na.rm = TRUE),
         transit_stops = sum(Public_Transit_Stops, na.rm = TRUE),
         .groups = "drop"
       )
 
     # Attach aggregated values back to the hex geometry and compute percent metrics
-    hex_sf <- inner_join(hex_grid, agg, by = "hex_id") |>
-      mutate(
-        poc_pct    = safe_pct(poc_pop, tot_pop),
-        lowinc_pct = safe_pct(lowinc_hh, tot_hh),
-        noveh_pct  = safe_pct(noveh_hh, tot_hh)
-      )
+    hex_sf <- inner_join(hex_grid, agg, by = "hex_id")
 
     # Return hex polygons in WGS84 format for Leaflet
     st_transform(hex_sf, 4326)
@@ -258,33 +347,45 @@ server <- function(input, output, session) {
   scored_hex <- reactive({
     h <- hex_agg()
 
-    # Select which metrics to score:
-    # Percent option uses percentages
-    # Count option uses raw totals
-    if (input$scale_mode == "pct") {
-      m_poc <- h$poc_pct
-      m_low <- h$lowinc_pct
-      m_noveh <- h$noveh_pct
-    } else {
-      m_poc <- h$poc_pop
-      m_low <- h$lowinc_hh
-      m_noveh <- h$noveh_hh
+    vars <- selected_features()
+
+    if (length(vars) == 0) {
+      return(h |> mutate(score = 0, rank = dense_rank(desc(score))))
     }
 
-    # Normalize each metric across hexes to [0, 1] so weights for different features are comparable
-    z_poc <- minmax01(m_poc)
-    z_low <- minmax01(m_low)
-    z_noveh <- minmax01(m_noveh)
+    selected_tbl <- feature_catalog |>
+      filter(var %in% vars)
 
-    # Weighted sum: score is higher when a hex has high values of weighted metrics
-    wsum <- input$w_poc + input$w_lowinc + input$w_noveh
-    score <- if (wsum == 0) rep(0, nrow(h)) else (
-      input$w_poc * z_poc +
-        input$w_lowinc * z_low +
-        input$w_noveh * z_noveh
-    )
+    score <- rep(0, nrow(h))
+    weight_sum <- 0
 
-    # Rank: 1 = highest priority score
+    for (i in seq_len(nrow(selected_tbl))) {
+      row <- selected_tbl[i, ]
+      w <- input[[paste0("w_", row$var)]]
+
+      if (is.null(w) || w == 0) next
+
+      metric <- if (input$scale_mode == "pct") {
+        # Percent mode only works if a denominator is defined
+        safe_pct(h[[row$var]], h[[row$denom]])
+      } else {
+        # Count mode
+        h[[row$var]]
+      }
+
+      # Normalize each metric across hexes to [0, 1] so weights for different features are comparable
+      z_metric <- minmax01(metric)
+
+      # Weighted sum: score is higher when a hex has high values of weighted metrics
+      score <- score + w * z_metric
+      weight_sum <- weight_sum + w
+    }
+
+    if (weight_sum == 0) {
+      score <- rep(0, nrow(h))
+    }
+
+    # Rank: 1 for highest priority score
     h |>
       mutate(score = score, rank = dense_rank(desc(score)))
   })
