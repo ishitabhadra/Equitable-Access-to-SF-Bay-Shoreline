@@ -15,3 +15,4 @@
 # Knitr cache
 *_cache/
 *.utf8.md
+/R Shiny/shoreline-access-map/rsconnect

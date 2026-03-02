@@ -5,6 +5,6 @@ account: jeffreyd
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 16759113
-bundleId: 11627723
+bundleId: 11648217
 url: https://jeffreyd.shinyapps.io/shoreline-access-map/
 version: 1
