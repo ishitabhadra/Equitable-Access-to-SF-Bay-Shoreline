@@ -51,6 +51,24 @@ minmax01 <- function(x) {
   return (x - rng[1]) / (rng[2] - rng[1])
 }
 
+fmt_num <- function(x) {
+  # Formatted numbers for labels/tooltips
+  ifelse(
+    is.na(x),
+    "NA",
+    format(round(x, 0), big.mark = ",", trim = TRUE, scientific = FALSE)
+  )
+}
+
+fmt_pct <- function(x) {
+  # Formatted percentages for labels/tooltips
+  ifelse(
+    is.na(x),
+    "NA",
+    paste0(round(100 * x, 1), "%")
+  )
+}
+
 
 # ---------------
 # Feature Catalog
@@ -405,6 +423,48 @@ server <- function(input, output, session) {
   observe({
     h <- scored_hex()
 
+    # HTML formatted tooltip statistics
+    selected_tbl <- feature_catalog |>
+      filter(var %in% selected_features())
+
+    build_hex_label <- function(row, selected_tbl) {
+      feature_lines <- purrr::map_chr(seq_len(nrow(selected_tbl)), function(i) {
+        feat <- selected_tbl[i, ]
+
+        raw_val <- row[[feat$var]]
+        pct_val <- safe_pct(raw_val, row[[feat$denom]])
+
+        denom_text <- if (feat$denom == "tot_pop") "population" else "households"
+
+        paste0(
+          "<strong>", feat$label, ":</strong> ",
+          fmt_num(raw_val),
+          " (", fmt_pct(pct_val), " of ", denom_text, ")"
+        )
+      })
+
+      htmltools::HTML(paste(
+        c(
+          paste0(
+            "<strong>Score:</strong> ", round(row$score, 3),
+            " | <strong>Rank:</strong> ", row$rank,
+            " | <strong>Access Points:</strong> ", row$n_points
+          ),
+          paste0(
+            "<strong>Total population:</strong> ", fmt_num(row$tot_pop),
+            " | <strong>Total households:</strong> ", fmt_num(row$tot_hh)
+          ),
+          feature_lines
+        ),
+        collapse = "<br/>"
+      ))
+    }
+
+    h$tooltip_html <- purrr::map(
+      seq_len(nrow(h)),
+      ~ build_hex_label(h[.x, ], selected_tbl)
+    )
+
     # Color scale for the priority score
     pal <- colorNumeric("viridis", domain = h$score, na.color = "transparent")
 
@@ -426,7 +486,11 @@ server <- function(input, output, session) {
         color = "#444444",
         weight = 0.5,
         opacity = 0.4,
-        label = ~paste0("Score: ", round(score, 3), " | Rank: ", rank, " | Points: ", n_points)
+        label = ~tooltip_html,
+        labelOptions = labelOptions(
+          direction = "auto",
+          textsize = "13px"
+        )
       ) |>
 
       # Highlight layer: outlines top N hexes
