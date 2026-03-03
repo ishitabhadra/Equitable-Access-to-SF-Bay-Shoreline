@@ -1,4 +1,4 @@
-# Equitable-Access-to-SF-Bay-Shoreline
+# Equitable Access to the SF Bay Shoreline
 
 This project analyzes whether shoreline access across the Bay Area is equitably distributed across race and income groups.
 
