@@ -15,13 +15,31 @@ shp <- st_read("Data/Shoreline_access_points/Shoreline_Access_Pts_v2_1.shp", qui
 csv <- csv |> mutate(Access_Point_ID = as.integer(Access_Point_ID))
 shp <- shp |> mutate(Access_Poi = as.integer(Access_Poi))
 
-# If IDs repeat, collapse to 1 row per Access_Point_ID
+# Take means of sums per Access_Point_ID
 csv_1 <- csv |>
   group_by(Access_Point_ID) |>
   summarise(
     across(where(is.numeric), ~ mean(.x, na.rm = TRUE)),
     across(where(is.character), ~ dplyr::first(.x)),
     .groups = "drop"
+  ) 
+
+# Append service mode accessbility
+service_modes <- csv |>
+  group_by(Access_Point_ID) |>
+  summarise(
+    Walk  = any(Service_Type == "Walk", na.rm = TRUE),
+    Bike  = any(Service_Type == "Bike", na.rm = TRUE),
+    Drive = any(Service_Type == "Drive", na.rm = TRUE),
+    .groups = "drop"
+  )
+
+csv_1 <- csv_1 |>
+  left_join(service_modes, by = "Access_Point_ID") |>
+  mutate(
+    Walk  = replace_na(Walk, FALSE),
+    Bike  = replace_na(Bike, FALSE),
+    Drive = replace_na(Drive, FALSE)
   )
 
 # Join full-name CSV fields onto the geometry (csv column names better for readability)
@@ -340,6 +358,16 @@ server <- function(input, output, session) {
       summarise(
         n_points = n(),
 
+        # Service mode availability (counts of access points in hex)
+        walk_n  = sum(Walk, na.rm = TRUE),
+        bike_n  = sum(Bike, na.rm = TRUE),
+        drive_n = sum(Drive, na.rm = TRUE),
+
+        # Mode availability (share of access points in hex)
+        walk_pct  = safe_pct(walk_n, n_points),
+        bike_pct  = safe_pct(bike_n, n_points),
+        drive_pct = safe_pct(drive_n, n_points),
+
         # Denominators for percent mode
         tot_pop = sum(SUM_Estimated_Total_Population, na.rm = TRUE),
         tot_hh = sum(SUM_Estimated_Total_Households, na.rm = TRUE),
@@ -428,6 +456,20 @@ server <- function(input, output, session) {
       filter(var %in% selected_features())
 
     build_hex_label <- function(row, selected_tbl) {
+      # Header (priority score + rank, counts of population + households)
+      header_lines <- c(
+        paste0(
+          "<strong>Score:</strong> ", round(row$score, 3),
+          " | <strong>Rank:</strong> ", row$rank,
+          " | <strong>Access Points:</strong> ", row$n_points
+        ),
+        paste0(
+          "<strong>Total population:</strong> ", fmt_num(row$tot_pop),
+          " | <strong>Total households:</strong> ", fmt_num(row$tot_hh)
+        )
+      )
+
+      # Tooltip labels for selected features
       feature_lines <- purrr::map_chr(seq_len(nrow(selected_tbl)), function(i) {
         feat <- selected_tbl[i, ]
 
@@ -443,18 +485,29 @@ server <- function(input, output, session) {
         )
       })
 
+      # Tooltip labels for service mode (walk/bike/drive) access
+      service_mode_lines <- c(
+        paste0(
+          "<strong>Walk access:</strong> ", row$walk_n, "/", row$n_points,
+          " (", fmt_pct(row$walk_pct), ")"
+        ),
+        paste0(
+          "<strong>Bike access:</strong> ", row$bike_n, "/", row$n_points,
+          " (", fmt_pct(row$bike_pct), ")"
+        ),
+        paste0(
+          "<strong>Drive access:</strong> ", row$drive_n, "/", row$n_points,
+          " (", fmt_pct(row$drive_pct), ")"
+        )
+      )
+
       htmltools::HTML(paste(
         c(
-          paste0(
-            "<strong>Score:</strong> ", round(row$score, 3),
-            " | <strong>Rank:</strong> ", row$rank,
-            " | <strong>Access Points:</strong> ", row$n_points
-          ),
-          paste0(
-            "<strong>Total population:</strong> ", fmt_num(row$tot_pop),
-            " | <strong>Total households:</strong> ", fmt_num(row$tot_hh)
-          ),
-          feature_lines
+          header_lines,
+          "",
+          feature_lines,
+          "",
+          service_mode_lines
         ),
         collapse = "<br/>"
       ))
