@@ -15,5 +15,4 @@
 # Knitr cache
 *_cache/
 *.utf8.md
-/R Shiny/shoreline-access-map/rsconnect
-/R Shiny/demographic-moe-map/rsconnect
+**/rsconnect/
