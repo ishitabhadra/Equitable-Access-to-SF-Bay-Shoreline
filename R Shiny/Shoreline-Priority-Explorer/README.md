@@ -12,7 +12,8 @@ This app maps **BCDC block groups** and assigns each one a **priority score** ba
 2. **Nearby shoreline access conditions**
 
 Block groups with higher scores appear darker on the map.
-&emsp;
+
+&nbsp;
 
 **1. Demographic Burden**
 Users can select one or more demographic indicators, such as:
@@ -24,6 +25,7 @@ Users can select one or more demographic indicators, such as:
 Each selected indicator has a **weight slider** from 0 to 1.
 
 For each block group, the app takes the corresponding **percentage estimate** from the BCDC dataset, rescales it relative to all other block groups, and adds it into the demographic score using the selected weight. This means that block groups with higher values on the selected burden indicators receive a higher **demographic score**.
+
 &emsp;
 
 **2. Nearby Shoreline Access**
