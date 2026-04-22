@@ -13,6 +13,7 @@ This app maps **BCDC block groups** and assigns each one a **priority score** ba
 
 Block groups with higher scores appear darker on the map.
 
+&emsp;
 
 **1. Demographic Burden**
 Users can select one or more demographic indicators, such as:
