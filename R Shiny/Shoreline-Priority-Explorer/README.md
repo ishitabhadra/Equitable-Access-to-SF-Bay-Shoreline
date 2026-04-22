@@ -13,6 +13,7 @@ This app maps **BCDC block groups** and assigns each one a **priority score** ba
 
 Block groups with higher scores appear darker on the map.
 
+
 ### Demographic Burden
 
 Users can select one or more demographic indicators, such as:
@@ -26,6 +27,7 @@ Each selected indicator has a **weight slider** from 0 to 1.
 For each block group, the app takes the corresponding **percentage estimate** from the BCDC dataset, rescales it relative to all other block groups, and adds it into the demographic score using the selected weight.
 
 This means that block groups with higher values on the selected burden indicators receive a higher **demographic score**.
+
 
 ### Nearby Shoreline Access
 
@@ -57,6 +59,7 @@ These shoreline metrics are treated as **deficit measures**, meaning that lower 
 
 These weighted deficit measures are combined into the **shoreline score**.
 
+
 ### Final Priority Score
 
 The app computes the final **priority score** as:
@@ -69,7 +72,8 @@ A block group will therefore rank higher if it has:
 - poorer nearby shoreline access
 - or both
 
-### Why the Apply Button Exists
+
+### Apply Shoreline Settings Button Functionality
 
 The app is designed so that **demographic controls update immediately**, but **shoreline controls only update when the user clicks _Apply shoreline settings_**.
 
@@ -80,6 +84,7 @@ This includes:
 - shoreline access radius
 
 This prevents the app from recomputing nearby shoreline summaries every time the user adjusts a shoreline-related control, which improves performance.
+
 
 ### Reliability Outlines
 
@@ -93,6 +98,7 @@ the block group is outlined in **red**.
 
 This outline is a warning that at least one selected demographic input is relatively unreliable and should be interpreted with caution.
 
+
 ### Interactive Features
 
 - Checking **Show shoreline access points** overlays the shoreline access point locations on the map.
@@ -101,6 +107,7 @@ This outline is a warning that at least one selected demographic input is relati
   - demographic inputs
   - shoreline access summary
   - reliability information
+
 
 ### How to Interpret the Map
 
