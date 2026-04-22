@@ -14,7 +14,7 @@ This app maps **BCDC block groups** and assigns each one a **priority score** ba
 Block groups with higher scores appear darker on the map.
 
 
-1. **Demographic Burden**
+**1. Demographic Burden**
 Users can select one or more demographic indicators, such as:
 
 - **Households Without a Vehicle**
@@ -26,7 +26,7 @@ Each selected indicator has a **weight slider** from 0 to 1.
 For each block group, the app takes the corresponding **percentage estimate** from the BCDC dataset, rescales it relative to all other block groups, and adds it into the demographic score using the selected weight. This means that block groups with higher values on the selected burden indicators receive a higher **demographic score**.
 
 
-2. **Nearby Shoreline Access**
+**2. Nearby Shoreline Access**
 
 The app also summarizes shoreline access near each block group. It does this by:
 
@@ -69,7 +69,7 @@ A block group will therefore rank higher if it has either/both of:
 
 ## Other App Functionalities
 
-1. **Apply Shoreline Settings Button**
+**1. Apply Shoreline Settings Button**
 
 To improve app loading time and efficiency, the app is designed so that demographic controls update immediately, but shoreline controls only update when the user clicks _Apply shoreline settings_. This includes:
 
@@ -80,7 +80,7 @@ To improve app loading time and efficiency, the app is designed so that demograp
 This prevents the app from recomputing nearby shoreline summaries every time the user adjusts a shoreline-related control, which improves performance. Note that this means the button must be pressed once to initalize the app.
 
 
-2. **Reliability Outlines**
+**2. Reliability Outlines**
 
 Some demographic indicators have high margins of error. If any selected demographic estimate has:
 
@@ -89,7 +89,7 @@ Some demographic indicators have high margins of error. If any selected demograp
 the block group is outlined in **red**. This outline is a warning that at least one selected demographic input is relatively unreliable and should be interpreted with caution.
 
 
-3. **Interactive Features**
+**3. Interactive Features**
 
 - Checking **Show shoreline access points** overlays the shoreline access point locations on the map.
 - Clicking a block group opens a detail panel showing:
