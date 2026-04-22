@@ -26,7 +26,7 @@ Each selected indicator has a **weight slider** from 0 to 1.
 
 For each block group, the app takes the corresponding **percentage estimate** from the BCDC dataset, rescales it relative to all other block groups, and adds it into the demographic score using the selected weight. This means that block groups with higher values on the selected burden indicators receive a higher **demographic score**.
 
-&emsp;
+&nbsp;
 
 **2. Nearby Shoreline Access**
 
@@ -80,7 +80,8 @@ To improve app loading time and efficiency, the app is designed so that demograp
 - shoreline access radius
 
 This prevents the app from recomputing nearby shoreline summaries every time the user adjusts a shoreline-related control, which improves performance. Note that this means the button must be pressed once to initalize the app.
-&emsp;
+
+&nbsp;
 
 **2. Reliability Outlines**
 
@@ -89,7 +90,8 @@ Some demographic indicators have high margins of error. If any selected demograp
 **MOE / Estimate > 0.5**
 
 the block group is outlined in **red**. This outline is a warning that at least one selected demographic input is relatively unreliable and should be interpreted with caution.
-&emsp;
+
+&nbsp;
 
 **3. Interactive Features**
 
